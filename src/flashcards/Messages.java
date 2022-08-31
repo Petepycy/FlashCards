@@ -62,4 +62,8 @@ public class Messages {
         System.out.printf("%d cards have been loaded.%n", numberOfSavedCards);
     }
 
+    public static void  printNumberOfCardsSaved (int numberOfSavedCards) {
+        System.out.printf("%d cards have been saved.%n", numberOfSavedCards);
+    }
+
 }

@@ -4,15 +4,14 @@ import java.io.*;
 import java.util.*;
 
 import static flashcards.Messages.*;
+import static flashcards.Messages.printNumberOfCardsSaved;
 
 public class FlashCards {
 
     Map<String, String> cards = new LinkedHashMap<>();
-
-    private int numberOfExistingCards = 0;
-
     private int numberOfCards;
     private boolean end = true;
+
 
     private void setNumberOfCards() {
         printAskNumber();
@@ -28,6 +27,7 @@ public class FlashCards {
         }
     }
 
+
     private String setStringOfCard(Set<String> set, String type) {
         if (type.equals(TERM)) {
             printSetTerm();
@@ -35,24 +35,25 @@ public class FlashCards {
         else {
             printSetDefinition();
         }
-        while (true) {
-            String string = inputScanner();
-            if (set.contains(string)) {
-                printAlreadyExists(type, string);
-                continue;
-            }
-            return string;
+        String string = inputScanner();
+        if (set.contains(string)) {
+            printAlreadyExists(type, string);
+            runFlashCards();
         }
+        return string;
+
     }
 
     private void createCards() {
+        int count = 1;
         cards.put(setStringOfCard(cards.keySet(), TERM),
                 setStringOfCard(new HashSet<>(cards.values()), DEFINITION));
         for (var entry : cards.entrySet()) {
-            System.out.printf("The pair (\"%s\":\"%s\") has been added.%n"
-                    , entry.getKey(), entry.getValue());
+            if (count == cards.size()) {
+                System.out.printf("The pair (\"%s\":\"%s\") has been added.%n"
+                        , entry.getKey(), entry.getValue());
+            } count++;
         }
-        numberOfExistingCards++;
     }
 
     private String getTermOfDefinition(String definition) {
@@ -72,16 +73,21 @@ public class FlashCards {
         }
     }
 
-    private void getFlashCards() {
+    private void getFlashCards(int number) {
+        int i = 0;
         for (var entry : cards.entrySet()) {
-            printGetDefinition(entry.getKey());
-            String definition = inputScanner();
-            if (definition.equals(entry.getValue())) {
-                printRightDefinition();
-            } else {
-                wrongAnswer(entry.getValue(), definition);
+            if (i < number) {
+                printGetDefinition(entry.getKey());
+                String definition = inputScanner();
+                if (definition.equals(entry.getValue())) {
+                    printRightDefinition();
+                } else {
+                    wrongAnswer(entry.getValue(), definition);
+                }
+                i++;
             }
         }
+
     }
 
     private void menuChoice() {
@@ -92,7 +98,7 @@ public class FlashCards {
             case "import" -> importToFile();
             case "export" -> exportFromFile();
             case "ask" -> ask();
-            case "exit" -> exit();
+            case "exit" -> exitApp();
         }
     }
 
@@ -101,47 +107,51 @@ public class FlashCards {
     }
 
     private void remove() {
+//        boolean remove = true;
         System.out.println("Which card?");
         String cardName = inputScanner();
+        Iterator<String> it = cards.keySet().iterator();
+        while (it.hasNext())
+            if (it.next().equalsIgnoreCase(cardName))
+                break;
+        while (it.hasNext()) {
+            it.next();
+            it.remove();
+            printRemoveMenu();
+        } printNoRemove(cardName);
 
-        for (var entry : cards.entrySet()) {
-            if (cardName.equals(entry.getKey())) {
-                cards.remove(entry.getKey(), entry.getValue());
-                printRemoveMenu();
-            } else printNoRemove(cardName);
-        }
+//        for (var entry : cards.entrySet()) {
+//            if (cardName.equals(entry.getKey())) {
+//                cards.remove(entry.getKey(), entry.getValue());
+//                printRemoveMenu();
+//                remove = false;
+//            }
+//        } if (remove) {
+//            printNoRemove(cardName);
+//        }
     }
 
     public Map<String, String> HashMapFromTextFile(String importTxt)
     {
         BufferedReader br = null;
         try {
-            // create file object
             File file = new File(importTxt);
-            // create BufferedReader object from the File
             br = new BufferedReader(new FileReader(file));
             String line;
-            // read file line by line
             while ((line = br.readLine()) != null) {
 
-                // split the line by :
                 String[] parts = line.split(":");
+                String term = parts[0].trim();
+                String definition = parts[1].trim();
 
-                // first part is name, second is number
-                String name = parts[0].trim();
-                String number = parts[1].trim();
-                // put name, number in HashMap if they are
-                // not empty
-                if (!name.equals("") && !number.equals("")) {
-                    numberOfExistingCards++;
-                    cards.put(name, number);
+                if (!term.equals("") && !definition.equals("")) {
+                    cards.put(term, definition);
                 }
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
-        }
-        finally {
+            System.out.println("File not found.");
+        } finally {
             // Always close the BufferedReader
             if (br != null) {
                 try {
@@ -156,24 +166,21 @@ public class FlashCards {
     }
 
     private void importToFile() {
+        int cardsSize = cards.size();
         printFileName();
         String txtNameFile = inputScanner();
         cards = HashMapFromTextFile(txtNameFile);
-        printNumberOfCards(numberOfExistingCards);
+        printNumberOfCards(cards.size() - cardsSize);
     }
 
     private void HashMapToTextFile(String outputTxtFile) {
         File file = new File(outputTxtFile);
-        try (BufferedWriter bf = new BufferedWriter(new FileWriter(file))) {
-            // iterate map entries
+        try (BufferedWriter bf = new BufferedWriter(new FileWriter(file, true))) {
+
             for (var entry : cards.entrySet()) {
-                // put key and value separated by a colon
-                bf.write(entry.getKey() + ":"
-                        + entry.getValue());
-                // new line
+                bf.write(entry.getKey() + ":" + entry.getValue());
                 bf.newLine();
             }
-            numberOfExistingCards++;
             bf.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -184,20 +191,17 @@ public class FlashCards {
         printFileName();
         String outputTxtFile = inputScanner();
         HashMapToTextFile(outputTxtFile);
-        printNumberOfCards(numberOfExistingCards);
+        printNumberOfCardsSaved(cards.size());
     }
 
     private void ask() {
         setNumberOfCards();
-        int i = 0;
-        while (i < (numberOfCards / 2)) {
-            getFlashCards();
-            i += 2;
-        }
+        getFlashCards(numberOfCards);
     }
 
-    private void exit() {
+    private void exitApp() {
         end = false;
         printExitMenu();
+        System.exit(0);
     }
 }
